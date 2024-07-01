@@ -188,6 +188,68 @@ window.setInterval(() => {
   asteroids.push(new Asteroid({ position, velocity, size }))
 }, 2000)
 
+// Helper function to calculate distance between two points
+function distance (x1, y1, x2, y2) {
+  return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+}
+
+// Helper function to calculate the distance from a point to a line segment
+function distToSegment (x, y, x1, y1, x2, y2) {
+  const A = x - x1
+  const B = y - y1
+  const C = x2 - x1
+  const D = y2 - y1
+
+  const dot = A * C + B * D
+  const lenSq = C * C + D * D
+  let param = -1
+  // in case of 0 length line
+  if (lenSq !== 0) { param = dot / lenSq }
+
+  let xx, yy
+
+  if (param < 0) {
+    xx = x1
+    yy = y1
+  } else if (param > 1) {
+    xx = x2
+    yy = y2
+  } else {
+    xx = x1 + param * C
+    yy = y1 + param * D
+  }
+
+  return distance(x, y, xx, yy)
+}
+
+// Updated collision detection function for circle-to-polygon
+function checkCollision (projectile, asteroid) {
+  // Check if the projectile's center is inside the asteroid's polygon
+  let inside = false
+  for (let i = 0, j = asteroid.vertices.length - 1; i < asteroid.vertices.length; j = i++) {
+    const xi = asteroid.vertices[i].x; const yi = asteroid.vertices[i].y
+    const xj = asteroid.vertices[j].x; const yj = asteroid.vertices[j].y
+
+    const intersect = ((yi > projectile.position.y) !== (yj > projectile.position.y)) &&
+        (projectile.position.x < (xj - xi) * (projectile.position.y - yi) / (yj - yi) + xi)
+    if (intersect) inside = !inside
+  }
+
+  if (inside) return true
+
+  // If not inside, check the distance to each edge of the polygon
+  for (let i = 0, j = asteroid.vertices.length - 1; i < asteroid.vertices.length; j = i++) {
+    const xi = asteroid.vertices[i].x; const yi = asteroid.vertices[i].y
+    const xj = asteroid.vertices[j].x; const yj = asteroid.vertices[j].y
+
+    if (distToSegment(projectile.position.x, projectile.position.y, xi, yi, xj, yj) <= projectile.radius) {
+      return true
+    }
+  }
+
+  return false
+}
+
 // Main game loop
 function animate () {
   window.requestAnimationFrame(animate)
@@ -234,7 +296,26 @@ function animate () {
     } else {
       asteroid.update()
     }
+
+    // Update and check collisions for projectiles
+    for (let i = projectiles.length - 1; i >= 0; i--) {
+      const projectile = projectiles[i]
+      // Check for collisions with asteroids
+      for (let j = asteroids.length - 1; j >= 0; j--) {
+        const asteroid = asteroids[j]
+        if (checkCollision(projectile, asteroid)) {
+        // Collision detected, remove both projectile and asteroid
+          projectiles.splice(i, 1)
+          asteroids.splice(j, 1)
+          break
+        }
+      }
+    }
   }
+
+  // collision handling
+  // bullet ast
+  // player ast
 
   // Handle player movement
   if (keys.w.pressed) {
