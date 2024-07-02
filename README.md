@@ -9,3 +9,9 @@ Recreate a simple version of the arcade game 'Asteroids'
 - Spawn asteroids
 - Hit asteroids
 - Game over
+## Further Improvements
+- Score
+- Reset Game
+- Asteroids bounce
+- Asteroids split
+- Flame animation
