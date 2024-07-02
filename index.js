@@ -12,6 +12,8 @@ const ROTATIONAL_SPEED = 3
 const FRICTION = 0.01
 const PROJECTILE_SPEED = 5
 const PI = Math.PI
+let score = 0
+let highScore = 0
 
 // Object to track key presses
 const keys = {
@@ -198,7 +200,7 @@ class Asteroid {
 }
 
 // Create the player
-const player = new Player({
+let player = new Player({
   position: { x: canvas.width / 2, y: canvas.height / 2 },
   velocity: { x: 0, y: 0 }
 })
@@ -264,7 +266,9 @@ function generateAsteroidProperties (posX, posY, r) {
 }
 
 // Spawn asteroids periodically
-window.setInterval(() => {
+let interval = window.setInterval(intervalFunc, 2000)
+
+function intervalFunc () {
   let asteroid = asteroids.find(a => !a.active)
   if (!asteroid) {
     const props = generateAsteroidProperties()
@@ -272,16 +276,13 @@ window.setInterval(() => {
     asteroids.push(asteroid)
   } else {
     const props = generateAsteroidProperties()
-    asteroid.position = props.position
-    asteroid.velocity = props.velocity
-    asteroid.size = props.size
+    Object.assign(asteroid, props)
     asteroid.vertices = asteroid.generateVertices()
     asteroid.collided = false
-    asteroid.rank = props.rank
   }
   asteroid.active = true
   asteroid.despawnable = false
-}, 2000)
+}
 
 // Check collision between a projectile and an asteroid
 function checkProjectileCollision (projectile, asteroid) {
@@ -380,9 +381,13 @@ function distToSegment (x, y, x1, y1, x2, y2) {
 
 // Main game loop
 function animate () {
-  const animationId = window.requestAnimationFrame(animate)
+  window.requestAnimationFrame(animate)
   ctx.fillStyle = 'black'
   ctx.fillRect(0, 0, canvas.width, canvas.height)
+  ctx.fillStyle = 'white'
+  ctx.font = '50px Arial'
+  ctx.fillText('Score: ' + score, 20, 60)
+  ctx.fillText('High Score: ' + highScore, 20, 110)
 
   player.update()
 
@@ -390,7 +395,7 @@ function animate () {
   const activeAsteroids = []
 
   // Update and filter active projectiles
-  for (let i = 0; i < projectiles.length; i++) {
+  for (let i = projectiles.length - 1; i >= 0; i--) {
     const projectile = projectiles[i]
     if (projectile.active) {
       projectile.update()
@@ -399,31 +404,43 @@ function animate () {
       } else {
         activeProjectiles.push(projectile)
       }
+    } else {
+      projectiles.splice(i, 1)
     }
   }
 
   // Update and filter active asteroids
-  for (let i = 0; i < asteroids.length; i++) {
+  for (let i = asteroids.length - 1; i >= 0; i--) {
     const asteroid = asteroids[i]
     if (asteroid.active) {
       asteroid.update()
       if (asteroid.isOffScreen()) {
         if (asteroid.despawnable) {
-          asteroid.active = false
+          asteroids.splice(i, 1)
         }
       } else {
         asteroid.despawnable = true
         activeAsteroids.push(asteroid)
       }
+    } else {
+      asteroids.splice(i, 1)
     }
   }
 
   // Check collisions between player and asteroids
   for (const asteroid of activeAsteroids) {
     if (checkPolygonCollision(player.vertices, asteroid.vertices)) {
-      console.log('Game Over')
-      window.cancelAnimationFrame(animationId)
-      // Implement game over logic here
+      console.log(asteroids)
+      console.log(projectiles)
+      score = 0
+      window.clearInterval(interval)
+      interval = window.setInterval(intervalFunc, 2000)
+      projectiles.splice(0, projectiles.length)
+      asteroids.splice(0, asteroids.length)
+      player = new Player({
+        position: { x: canvas.width / 2, y: canvas.height / 2 },
+        velocity: { x: 0, y: 0 }
+      })
       return
     }
   }
@@ -434,6 +451,8 @@ function animate () {
       if (checkProjectileCollision(projectile, asteroid)) {
         projectile.active = false
         asteroid.active = false
+        score += (5 - asteroid.rank) * 25
+        highScore = Math.max(score, highScore)
         if (asteroid.rank > 1) {
           const newAsteroid1 = new Asteroid(generateAsteroidProperties(asteroid.position.x,
             asteroid.position.y, asteroid.rank - 1))
@@ -510,9 +529,8 @@ window.addEventListener('keydown', (event) => {
       keys.d.pressed = true
       break
     case 'Space': {
-      // Find an inactive projectile or create a new one
       let projectile = projectiles.find(p => !p.active)
-      if (!projectiles.find(p => !p.active)) {
+      if (!projectile) {
         projectile = new Projectile({
           position: {
             x: player.position.x + Math.cos(player.rotation) * 20,
