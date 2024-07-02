@@ -129,6 +129,7 @@ class Asteroid {
     this.despawnable = false
     this.active = true
     this.vertices = this.generateVertices()
+    this.collided = false
   }
 
   // Generate random vertices for the asteroid
@@ -263,6 +264,7 @@ window.setInterval(() => {
     asteroid.velocity = props.velocity
     asteroid.size = props.size
     asteroid.vertices = asteroid.generateVertices()
+    asteroid.collided = false
   }
   asteroid.active = true
   asteroid.despawnable = false
@@ -403,6 +405,16 @@ function animate () {
     }
   }
 
+  // Check collisions between player and asteroids
+  for (const asteroid of activeAsteroids) {
+    if (checkPolygonCollision(player.vertices, asteroid.vertices)) {
+      console.log('Game Over')
+      window.cancelAnimationFrame(animationId)
+      // Implement game over logic here
+      return
+    }
+  }
+
   // Check collisions between projectiles and asteroids
   for (const projectile of activeProjectiles) {
     for (const asteroid of activeAsteroids) {
@@ -414,13 +426,26 @@ function animate () {
     }
   }
 
-  // Check collisions between player and asteroids
-  for (const asteroid of activeAsteroids) {
-    if (checkPolygonCollision(player.vertices, asteroid.vertices)) {
-      console.log('Game Over')
-      window.cancelAnimationFrame(animationId)
-      // Implement game over logic here
-      return
+  // Check collisions between asteroids
+  if (activeAsteroids.length > 1) {
+    for (const asteroid1 of activeAsteroids) {
+      for (const asteroid2 of activeAsteroids) {
+        if (asteroid1 !== asteroid2) {
+          if (asteroid1.collided === asteroid2 && asteroid2.collided === asteroid1) break
+          if (checkPolygonCollision(asteroid1.vertices, asteroid2.vertices)) {
+            asteroid1.collided = asteroid2
+            asteroid2.collided = asteroid1
+            const sizeRatio = asteroid1.size / asteroid2.size
+            const tempX = asteroid1.velocity.x * sizeRatio
+            const tempY = asteroid1.velocity.y * sizeRatio
+            asteroid1.velocity.x = asteroid2.velocity.x / sizeRatio
+            asteroid1.velocity.y = asteroid2.velocity.y / sizeRatio
+            asteroid2.velocity.x = tempX
+            asteroid2.velocity.y = tempY
+            break
+          }
+        }
+      }
     }
   }
 
