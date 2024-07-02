@@ -122,12 +122,13 @@ class Projectile {
 
 // Asteroid class definition
 class Asteroid {
-  constructor ({ position, velocity, size }) {
+  constructor ({ position, velocity, size, rank }) {
     this.position = position
     this.velocity = velocity
-    this.size = size
     this.despawnable = false
     this.active = true
+    this.rank = rank
+    this.size = size
     this.vertices = this.generateVertices()
     this.collided = false
   }
@@ -203,10 +204,11 @@ const player = new Player({
 })
 
 // Generate properties for a new asteroid
-function generateAsteroidProperties () {
+function generateAsteroidProperties (posX, posY, r) {
   const quadrant = Math.floor(Math.random() * 4)
   let position, velocity
-  const size = Math.random() * 100 + 20
+  let rank = Math.floor(Math.random() * 4 + 1)
+  let size = rank * 30
   const buffer = size + size * Math.sqrt(1 - Math.cos(PI / 16))
   const minSpeed = 0.5
   const maxSpeed = 2
@@ -248,7 +250,17 @@ function generateAsteroidProperties () {
   velocity.x += (Math.random() - 0.5) * (maxSpeed / 2)
   velocity.y += (Math.random() - 0.5) * (maxSpeed / 2)
 
-  return { position, velocity, size }
+  if (posX !== undefined) {
+    position = { x: posX, y: posY }
+    velocity = {
+      x: (Math.random() - 0.5) * 2 * (maxSpeed - minSpeed) + minSpeed,
+      y: (Math.random() - 0.5) * 2 * (maxSpeed - minSpeed) + minSpeed
+    }
+    rank = r
+    size = rank * 30
+  }
+
+  return { position, velocity, size, rank }
 }
 
 // Spawn asteroids periodically
@@ -265,6 +277,7 @@ window.setInterval(() => {
     asteroid.size = props.size
     asteroid.vertices = asteroid.generateVertices()
     asteroid.collided = false
+    asteroid.rank = props.rank
   }
   asteroid.active = true
   asteroid.despawnable = false
@@ -421,6 +434,18 @@ function animate () {
       if (checkProjectileCollision(projectile, asteroid)) {
         projectile.active = false
         asteroid.active = false
+        if (asteroid.rank > 1) {
+          const newAsteroid1 = new Asteroid(generateAsteroidProperties(asteroid.position.x,
+            asteroid.position.y, asteroid.rank - 1))
+          const newAsteroid2 = new Asteroid(generateAsteroidProperties(asteroid.position.x,
+            asteroid.position.y, asteroid.rank - 1))
+          newAsteroid1.collided = newAsteroid2
+          newAsteroid2.collided = newAsteroid1
+          asteroids.push(newAsteroid1)
+          asteroids.push(newAsteroid2)
+          activeAsteroids.push(newAsteroid1)
+          activeAsteroids.push(newAsteroid2)
+        }
         break
       }
     }
