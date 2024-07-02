@@ -9,7 +9,7 @@ canvas.height = window.innerHeight
 // Game constants
 const SPEED = 2
 const ROTATIONAL_SPEED = 3
-const FRICTION = 0.01
+const FRICTION = 0.005
 const PROJECTILE_SPEED = 5
 const PI = Math.PI
 let score = 0
@@ -56,6 +56,27 @@ class Player {
         y: this.position.y - this.size * sin + this.size / 2 * cos
       }
     ]
+
+    const flameSize = this.size * 0.8 // Adjust this value to change flame size
+    const flameWidth = this.size * 0.4 // Adjust this value to change flame width
+
+    this.flameVertices = [
+    // Left base of flame
+      {
+        x: this.position.x - this.size * cos - flameWidth / 2 * sin,
+        y: this.position.y - this.size * sin + flameWidth / 2 * cos
+      },
+      // Right base of flame
+      {
+        x: this.position.x - this.size * cos + flameWidth / 2 * sin,
+        y: this.position.y - this.size * sin - flameWidth / 2 * cos
+      },
+      // Tip of flame
+      {
+        x: this.position.x - (this.size + flameSize) * cos,
+        y: this.position.y - (this.size + flameSize) * sin
+      }
+    ]
   }
 
   // Draw the player on the canvas
@@ -68,6 +89,17 @@ class Player {
 
     ctx.strokeStyle = 'white'
     ctx.stroke()
+
+    // Draw the flame (only when thrusting)
+    if (keys.w.pressed) {
+      ctx.beginPath()
+      ctx.moveTo(this.flameVertices[0].x, this.flameVertices[0].y)
+      ctx.lineTo(this.flameVertices[2].x, this.flameVertices[2].y)
+      ctx.lineTo(this.flameVertices[1].x, this.flameVertices[1].y)
+      ctx.closePath()
+      ctx.fillStyle = 'orange'
+      ctx.fill()
+    }
   }
 
   // Update player's position and redraw
@@ -131,6 +163,7 @@ class Asteroid {
     this.active = true
     this.rank = rank
     this.size = size
+    this.isInside = false
     this.vertices = this.generateVertices()
     this.collided = false
   }
@@ -430,8 +463,6 @@ function animate () {
   // Check collisions between player and asteroids
   for (const asteroid of activeAsteroids) {
     if (checkPolygonCollision(player.vertices, asteroid.vertices)) {
-      console.log(asteroids)
-      console.log(projectiles)
       score = 0
       window.clearInterval(interval)
       interval = window.setInterval(intervalFunc, 2000)
@@ -460,6 +491,10 @@ function animate () {
             asteroid.position.y, asteroid.rank - 1))
           newAsteroid1.collided = newAsteroid2
           newAsteroid2.collided = newAsteroid1
+          newAsteroid1.isInside = true
+          newAsteroid2.isInside = true
+          newAsteroid2.velocity.x = -newAsteroid1.velocity.x
+          newAsteroid2.velocity.y = -newAsteroid1.velocity.y
           asteroids.push(newAsteroid1)
           asteroids.push(newAsteroid2)
           activeAsteroids.push(newAsteroid1)
@@ -475,18 +510,31 @@ function animate () {
     for (const asteroid1 of activeAsteroids) {
       for (const asteroid2 of activeAsteroids) {
         if (asteroid1 !== asteroid2) {
-          if (asteroid1.collided === asteroid2 && asteroid2.collided === asteroid1) break
           if (checkPolygonCollision(asteroid1.vertices, asteroid2.vertices)) {
-            asteroid1.collided = asteroid2
-            asteroid2.collided = asteroid1
-            const sizeRatio = asteroid1.size / asteroid2.size
-            const tempX = asteroid1.velocity.x * sizeRatio
-            const tempY = asteroid1.velocity.y * sizeRatio
-            asteroid1.velocity.x = asteroid2.velocity.x / sizeRatio
-            asteroid1.velocity.y = asteroid2.velocity.y / sizeRatio
-            asteroid2.velocity.x = tempX
-            asteroid2.velocity.y = tempY
-            break
+            if (!(asteroid1.collided === asteroid2 && asteroid2.collided === asteroid1)) {
+              if (asteroid1.isInside && !asteroid2.isInside) {
+                asteroid2.velocity.x = -asteroid2.velocity.x
+                asteroid2.velocity.y = -asteroid2.velocity.y
+              }
+              if (asteroid2.isInside && !asteroid1.isInside) {
+                asteroid1.velocity.x = -asteroid1.velocity.x
+                asteroid1.velocity.y = -asteroid1.velocity.y
+              }
+              if (!asteroid1.isInside && !asteroid2.isInside) {
+                asteroid1.collided = asteroid2
+                asteroid2.collided = asteroid1
+                const sizeRatio = asteroid1.size / asteroid2.size
+                const tempX = asteroid2.velocity.x * sizeRatio
+                const tempY = asteroid2.velocity.y * sizeRatio
+                asteroid2.velocity.x = asteroid1.velocity.x * sizeRatio
+                asteroid2.velocity.y = asteroid1.velocity.y * sizeRatio
+                asteroid1.velocity.x = tempX
+                asteroid1.velocity.y = tempY
+              }
+            }
+          } else if (asteroid1.isInside && asteroid2.isInside) {
+            asteroid1.isInside = false
+            asteroid2.isInside = false
           }
         }
       }
