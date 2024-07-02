@@ -1,6 +1,6 @@
 # Asteroids
 ## Objective
-Recreate a simple version of the arcade game 'Asteroids'
+Recreate a simple version of the arcade game 'Asteroids' using canvas
 ## Plan
 - Create game environment
 - Create a player
